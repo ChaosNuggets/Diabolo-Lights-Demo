@@ -9,7 +9,7 @@ const int NUM_LEDS = 6;
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_PIN, NEO_RGB + NEO_KHZ800);
 
-bool are_leds_on = true;
+bool are_leds_on = false;
 enum LED_State {
     SETUP,
     GETTING_BRIGHTER,
@@ -21,10 +21,18 @@ enum LED_State {
 unsigned long last_debounce_time = 0;
 const int DEBOUNCE_DELAY = 50; //ms
 int debounce_button_state;
-int button_state;
+int button_state = HIGH; // Set it to high so then the second if block inside handle_button runs on startup if the button is low
 unsigned long turn_on_time = 0;
 
 ISR(PCINT0_vect) { // This should only run when it is woken up from sleep mode
+    //for(int i = 0; i < NUM_LEDS; i++) {
+    //    pixels.setPixelColor(i, pixels.Color(0, 50, 0));
+    //    pixels.show();
+    //}
+    //delay(500);
+    //pixels.clear();
+    //pixels.show();
+
     turn_on_time = millis();
     last_debounce_time = millis();
     are_leds_on = true;
@@ -36,6 +44,14 @@ ISR(PCINT0_vect) { // This should only run when it is woken up from sleep mode
 }
 
 void shut_down() {
+    //for(int i = 0; i < NUM_LEDS; i++) {
+    //    pixels.setPixelColor(i, pixels.Color(50, 0, 0));
+    //    pixels.show();
+    //}
+    //delay(500);
+    //pixels.clear();
+    //pixels.show();
+
     GIMSK |= 1 << PCIE; // enable pin change interrupt
     PCMSK |= 1 << PCINT2; // turns on PCINT2 as interrupt pin
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -44,16 +60,7 @@ void shut_down() {
     sleep_mode(); // put the microcontroller to sleep
 }
 
-void setup() {
-    pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
-    pixels.clear(); // Set all pixel colors to 'off'
-
-    pinMode(BUTTON_PIN, INPUT);
-    button_state = digitalRead(BUTTON_PIN);
-    debounce_button_state = button_state;
-}
-
-void loop() {
+void handle_button() {
     int reading = digitalRead(BUTTON_PIN);
     if (reading != debounce_button_state) {
         last_debounce_time = millis();
@@ -71,6 +78,17 @@ void loop() {
             shut_down();
         }
     }
+}
+
+void setup() {
+    pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
+
+    pinMode(BUTTON_PIN, INPUT);
+    debounce_button_state = digitalRead(BUTTON_PIN);
+}
+
+void loop() {
+    handle_button();
 
     uint32_t color = are_leds_on ? pixels.Color(50, 50, 50) : pixels.Color(0, 0, 0);
     
