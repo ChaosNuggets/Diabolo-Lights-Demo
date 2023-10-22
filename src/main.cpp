@@ -55,8 +55,8 @@ Instruction instructions[] = {
     {RED, 48},
     {BLUE, 56},
     // Dark king carp stuff
-    {PURPLE, 58},
-    {GREEN, 60},
+    {PURPLE, 60},
+    {GREEN, 62},
     {WHITE_BLUE, 72},
     {OFF, 1800}
 };
@@ -141,7 +141,8 @@ void loop() {
     }
 
     const int STARTING_OFFSET = 28; // 28 beats
-    if (millis() - turn_on_time > (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
+    //const int STARTING_OFFSET = -40;
+    if (millis() - turn_on_time >= (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
         instruction_num++;
     }
     
