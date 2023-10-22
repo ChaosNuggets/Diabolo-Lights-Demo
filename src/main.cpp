@@ -13,52 +13,85 @@ Adafruit_NeoPixel pixels(NUM_LEDS, LED_PIN, NEO_RGB + NEO_KHZ800);
 
 bool are_leds_on = false;
 
-typedef uint32_t LED_Color;
-const LED_Color WHITE_BLUE = pixels.Color(128/2, 128/2, 255/2);
-const LED_Color BRIGHT_WHITE_BLUE = pixels.Color(128, 128, 255);
-const LED_Color OFF = pixels.Color(0, 0, 0);
-const LED_Color DIM_WHITE = pixels.Color(20, 20, 20);
-const LED_Color BRIGHT_WHITE = pixels.Color(255, 255, 255);
-const LED_Color BRIGHT_PURPLE = pixels.Color(255, 0, 255);
-const LED_Color BRIGHT_BLUE = pixels.Color(0, 0, 255);
-const LED_Color WHITE_RED = pixels.Color(255/2, 128/2, 128/2);
-const LED_Color YELLOW = pixels.Color(255/2, 255/2, 0);
-const LED_Color BLUE = pixels.Color(0, 0, 255/2);
-const LED_Color RED = pixels.Color(255/2, 0, 0);
-const LED_Color PURPLE = pixels.Color(255/2, 0, 255/2);
-const LED_Color GREEN = pixels.Color(0, 255/2, 0);
+struct LED_Color {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
 
-typedef struct {
+    uint32_t to_uint32() {
+        return pixels.Color(r, g, b);
+    }
+
+    LED_Color operator*(float a) {
+        return {r * a, g * a, b * a};
+    }
+
+    LED_Color operator+(LED_Color const& obj) {
+        return {r + obj.r, g + obj.g, b + obj.b};
+    }
+};
+
+const LED_Color WHITE_BLUE = {128/2, 128/2, 255/2};
+const LED_Color BRIGHT_WHITE_BLUE = {128, 128, 255};
+const LED_Color OFF = {0, 0, 0};
+const LED_Color DIM_WHITE = {20, 20, 20};
+const LED_Color BRIGHT_WHITE = {255, 255, 255};
+const LED_Color BRIGHT_PURPLE = {255, 0, 255};
+const LED_Color BRIGHT_BLUE = {0, 0, 255};
+const LED_Color WHITE_RED = {255/2, 128/2, 128/2};
+const LED_Color YELLOW = {255/2, 255/2, 0};
+const LED_Color BLUE = {0, 0, 255/2};
+const LED_Color RED = {255/2, 0, 0};
+const LED_Color PURPLE = {255/2, 0, 255/2};
+const LED_Color GREEN = {0, 255/2, 0};
+
+struct Keyframe {
     LED_Color color;
-    double timing; // time before it should go to the next instruction in beats since turn on
-} Instruction;
+    float time; // time in beats since turn on + OFFSET
+};
 
-int instruction_num = 0;
-Instruction instructions[] = {
+int keyframe_idx = 0;
+const Keyframe keyframes[] = {
     {WHITE_BLUE, 0},
     {BRIGHT_WHITE_BLUE, 4},
+    {OFF, 4},
     {OFF, 5},
     {DIM_WHITE, 8},
     // 2 high stuff
-    {BRIGHT_WHITE, 12},
-    {BRIGHT_PURPLE, 16},
-    {BRIGHT_BLUE, 20},
-    {BRIGHT_WHITE_BLUE, 24},
+    {BRIGHT_WHITE, 8},
+    {BRIGHT_WHITE, 11.9},
+    {BRIGHT_PURPLE, 12.1},
+    {BRIGHT_PURPLE, 15.9},
+    {BRIGHT_BLUE, 16.1},
+    {BRIGHT_BLUE, 19.9},
+    {BRIGHT_WHITE_BLUE, 20.1},
+    {BRIGHT_WHITE_BLUE, 23.9},
     // FTS stuff
-    {WHITE_RED, 28},
-    {WHITE_BLUE, 32},
-    {WHITE_RED, 36},
-    {WHITE_BLUE, 38},
+    {WHITE_RED, 24.1},
+    {WHITE_RED, 27.9},
+    {WHITE_BLUE, 28.1},
+    {WHITE_BLUE, 31.9},
+    {WHITE_RED, 32.1},
+    {WHITE_RED, 35.9},
+    {WHITE_BLUE, 36.1},
+    {WHITE_BLUE, 37.9},
+    {YELLOW, 38.1},
     {YELLOW, 40},
     // Fan stuff
+    {BLUE, 40},
     {BLUE, 44},
+    {RED, 44},
     {RED, 48},
+    {BLUE, 48},
     {BLUE, 56},
     // Dark king carp stuff
-    {PURPLE, 58},
-    {GREEN, 60},
+    {PURPLE, 56},
+    {PURPLE, 57.9},
+    {GREEN, 58.1},
+    {GREEN, 59.9},
+    {WHITE_BLUE, 60.1},
     {WHITE_BLUE, 72},
-    {OFF, 1800}
+    {OFF, 72},
 };
 
 unsigned long last_debounce_time = 0;
@@ -80,7 +113,7 @@ ISR(PCINT0_vect) { // This should only run when it is woken up from sleep mode
     last_debounce_time = millis();
     are_leds_on = true;
     button_state = HIGH;
-    instruction_num = 0; // start back at the beginning of the instructions array
+    keyframe_idx = 0; // start back at the beginning of the keyframes array
 
     cli(); // disable interrupts
     PCMSK &= ~(1 << PCINT2); // turns of PCINT2 as interrupt pin
@@ -124,6 +157,14 @@ static void handle_button() {
     }
 }
 
+LED_Color lerp(LED_Color a, LED_Color b, float f) {
+    return a * (1 - f) + (b * f);
+}
+
+float inverse_lerp(float a, float b, float f) {
+    return (f - a) / (b - a);
+}
+
 void setup() {
     pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
 
@@ -140,17 +181,24 @@ void loop() {
         return;
     }
 
-    const int STARTING_OFFSET = 28; // 28 beats
-    if (millis() - turn_on_time > (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
-        instruction_num++;
+    const int OFFSET = 28; // 28 beats
+    if (millis() - turn_on_time > (keyframes[keyframe_idx].time + OFFSET) * MSPB) {
+        keyframe_idx++;
     }
     
+    const Keyframe& left = keyframe_idx - 1 >= 0 ? keyframes[keyframe_idx - 1] : keyframes[keyframe_idx];
+    const Keyframe& right = keyframe_idx < sizeof(keyframes) / sizeof(keyframes[0]) ? keyframes[keyframe_idx] : keyframes[keyframe_idx - 1];
+    //pixels.setPixelColor(0, left.color == keyframes[0].color ? pixels.Color(100, 0, 0) : pixels.Color(0, 100, 0));
+    //pixels.setPixelColor(1, right.color == keyframes[0].color ? pixels.Color(100, 0, 0) : pixels.Color(0, 100, 0));
+    //pixels.show();
+    //delay(200);
+    LED_Color color = lerp(left.color, right.color, inverse_lerp((right.time + OFFSET) * MSPB, (left.time + OFFSET) * MSPB, millis() - turn_on_time));
     for (int i = 0; i < NUM_LEDS; i++) {
-        pixels.setPixelColor(i, instructions[instruction_num].color);
+        pixels.setPixelColor(i, color.to_uint32());
         pixels.show();
     }
     
-    if (instruction_num >= sizeof(instructions) / sizeof(instructions[0]) - 1) {
+    if (keyframe_idx >= sizeof(keyframes) / sizeof(keyframes[0]) - 1) {
         shut_down();
     }
 }
