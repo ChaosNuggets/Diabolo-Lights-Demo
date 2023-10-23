@@ -14,51 +14,56 @@ Adafruit_NeoPixel pixels(NUM_LEDS, LED_PIN, NEO_RGB + NEO_KHZ800);
 bool are_leds_on = false;
 
 typedef uint32_t LED_Color;
-const LED_Color WHITE_BLUE = pixels.Color(128/2, 128/2, 255/2);
-const LED_Color BRIGHT_WHITE_BLUE = pixels.Color(128, 128, 255);
 const LED_Color OFF = pixels.Color(0, 0, 0);
+const LED_Color WHITE = pixels.Color(128, 128, 128);
 const LED_Color DIM_WHITE = pixels.Color(20, 20, 20);
 const LED_Color BRIGHT_WHITE = pixels.Color(255, 255, 255);
-const LED_Color BRIGHT_PURPLE = pixels.Color(255, 0, 255);
-const LED_Color BRIGHT_BLUE = pixels.Color(0, 0, 255);
-const LED_Color WHITE_RED = pixels.Color(255/2, 128/2, 128/2);
-const LED_Color YELLOW = pixels.Color(255/2, 255/2, 0);
-const LED_Color BLUE = pixels.Color(0, 0, 255/2);
-const LED_Color RED = pixels.Color(255/2, 0, 0);
 const LED_Color PURPLE = pixels.Color(255/2, 0, 255/2);
+const LED_Color BRIGHT_PURPLE = pixels.Color(255, 0, 255);
+const LED_Color BLUE = pixels.Color(0, 0, 255/2);
+const LED_Color BRIGHT_BLUE = pixels.Color(0, 0, 255);
+const LED_Color YELLOW = pixels.Color(255/2, 255/2, 0);
+const LED_Color RED = pixels.Color(255/2, 0, 0);
 const LED_Color GREEN = pixels.Color(0, 255/2, 0);
 
-typedef struct {
-    LED_Color color;
+struct Instruction {
+    const LED_Color& color1;
+    const LED_Color& color2;
     double timing; // time before it should go to the next instruction in beats since turn on
-} Instruction;
+
+    Instruction(const LED_Color& color, double timing)
+        : color1(color), color2(color), timing(timing) {}
+
+    Instruction(const LED_Color& color1, const LED_Color& color2, double timing)
+        : color1(color1), color2(color2), timing(timing) {}
+};
 
 int instruction_num = 0;
 Instruction instructions[] = {
-    {WHITE_BLUE, 0},
-    {BRIGHT_WHITE_BLUE, 4},
-    {OFF, 5},
-    {DIM_WHITE, 8},
+    Instruction(WHITE, BLUE, 0),
+    Instruction(BRIGHT_WHITE, BLUE, 4),
+    Instruction(OFF, 5),
+    Instruction(DIM_WHITE, 8),
     // 2 high stuff
-    {BRIGHT_WHITE, 12},
-    {BRIGHT_PURPLE, 16},
-    {BRIGHT_BLUE, 20},
-    {BRIGHT_WHITE_BLUE, 24},
+    Instruction(BRIGHT_WHITE, 12),
+    Instruction(BRIGHT_PURPLE, 16),
+    Instruction(BRIGHT_BLUE, 20),
+    Instruction(BRIGHT_WHITE, BLUE, 24),
     // FTS stuff
-    {WHITE_RED, 28},
-    {WHITE_BLUE, 32},
-    {WHITE_RED, 36},
-    {WHITE_BLUE, 38},
-    {YELLOW, 40},
+    Instruction(WHITE, RED, 28),
+    Instruction(WHITE, BLUE, 32),
+    Instruction(WHITE, RED, 36),
+    Instruction(WHITE, BLUE, 38),
+    Instruction(YELLOW, 40),
     // Fan stuff
-    {BLUE, 44},
-    {RED, 48},
-    {BLUE, 56},
+    Instruction(BLUE, 44),
+    Instruction(RED, 48),
+    Instruction(BLUE, 56),
     // Dark king carp stuff
-    {PURPLE, 60},
-    {GREEN, 62},
-    {WHITE_BLUE, 72},
-    {OFF, 1800}
+    Instruction(PURPLE, 60),
+    Instruction(GREEN, 62),
+    Instruction(WHITE, BLUE, 72),
+    Instruction(OFF, 69420)
 };
 
 unsigned long last_debounce_time = 0;
@@ -141,17 +146,21 @@ void loop() {
     }
 
     const int STARTING_OFFSET = 28; // 28 beats
-    //const int STARTING_OFFSET = -40;
+    //const int STARTING_OFFSET = -68;
     if (millis() - turn_on_time >= (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
         instruction_num++;
     }
     
-    for (int i = 0; i < NUM_LEDS; i++) {
-        pixels.setPixelColor(i, instructions[instruction_num].color);
-        pixels.show();
+    for (int i = 0; i < NUM_LEDS; i += 2) {
+        pixels.setPixelColor(i, instructions[instruction_num].color1);
     }
+    for (int i = 1; i < NUM_LEDS; i += 2) {
+        pixels.setPixelColor(i, instructions[instruction_num].color2);
+    }
+    pixels.show();
     
     if (instruction_num >= sizeof(instructions) / sizeof(instructions[0]) - 1) {
-        shut_down();
+        button_state = HIGH; // make it so the shut down command runs if the button is not pressed (I hate button debounce so much lmao)
+        are_leds_on = false;
     }
 }
