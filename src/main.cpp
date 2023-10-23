@@ -54,14 +54,14 @@ Instruction instructions[] = {
     Instruction(WHITE, BLUE, 32),
     Instruction(WHITE, RED, 36),
     Instruction(WHITE, BLUE, 38),
-    Instruction(YELLOW, 40),
+    Instruction(WHITE, YELLOW, 40),
     // Fan stuff
     Instruction(BLUE, 44),
     Instruction(RED, 48),
     Instruction(BLUE, 56),
     // Dark king carp stuff
     Instruction(PURPLE, 60),
-    Instruction(GREEN, 62),
+    Instruction(WHITE, GREEN, 62),
     Instruction(WHITE, BLUE, 72),
     Instruction(OFF, 69420)
 };
@@ -146,7 +146,7 @@ void loop() {
     }
 
     const int STARTING_OFFSET = 28; // 28 beats
-    //const int STARTING_OFFSET = -68;
+    //const int STARTING_OFFSET = -4;
     if (millis() - turn_on_time >= (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
         instruction_num++;
     }
