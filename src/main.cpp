@@ -15,16 +15,15 @@ bool are_leds_on = false;
 
 typedef uint32_t LED_Color;
 const LED_Color OFF = pixels.Color(0, 0, 0);
-const LED_Color WHITE = pixels.Color(128, 128, 128);
+const LED_Color WHITE = pixels.Color(255/2, 255/2, 255/2);
 const LED_Color DIM_WHITE = pixels.Color(20, 20, 20);
 const LED_Color BRIGHT_WHITE = pixels.Color(255, 255, 255);
-const LED_Color PURPLE = pixels.Color(255/2, 0, 255/2);
 const LED_Color BRIGHT_PURPLE = pixels.Color(255, 0, 255);
 const LED_Color BLUE = pixels.Color(0, 0, 255/2);
 const LED_Color BRIGHT_BLUE = pixels.Color(0, 0, 255);
-const LED_Color YELLOW = pixels.Color(255/2, 255/2, 0);
-const LED_Color RED = pixels.Color(255/2, 0, 0);
-const LED_Color GREEN = pixels.Color(0, 255/2, 0);
+const LED_Color BRIGHT_YELLOW = pixels.Color(255/2, 255/2, 0);
+const LED_Color BRIGHT_RED = pixels.Color(255/2, 0, 0);
+const LED_Color BRIGHT_GREEN = pixels.Color(0, 255/2, 0);
 
 struct Instruction {
     const LED_Color& color1;
@@ -48,21 +47,21 @@ Instruction instructions[] = {
     Instruction(BRIGHT_WHITE, 12),
     Instruction(BRIGHT_PURPLE, 16),
     Instruction(BRIGHT_BLUE, 20),
-    Instruction(BRIGHT_WHITE, BLUE, 24),
+    Instruction(BRIGHT_WHITE, BRIGHT_BLUE, 24),
     // FTS stuff
-    Instruction(WHITE, RED, 28),
-    Instruction(WHITE, BLUE, 32),
-    Instruction(WHITE, RED, 36),
-    Instruction(WHITE, BLUE, 38),
-    Instruction(WHITE, YELLOW, 40),
+    Instruction(BRIGHT_WHITE, BRIGHT_RED, 28),
+    Instruction(BRIGHT_WHITE, BRIGHT_BLUE, 32),
+    Instruction(BRIGHT_WHITE, BRIGHT_RED, 36),
+    Instruction(BRIGHT_WHITE, BRIGHT_BLUE, 38),
+    Instruction(BRIGHT_WHITE, BRIGHT_YELLOW, 40),
     // Fan stuff
-    Instruction(BLUE, 44),
-    Instruction(RED, 48),
-    Instruction(BLUE, 56),
+    Instruction(BRIGHT_BLUE, 44),
+    Instruction(BRIGHT_RED, 48),
+    Instruction(BRIGHT_BLUE, 56),
     // Dark king carp stuff
-    Instruction(PURPLE, 60),
-    Instruction(WHITE, GREEN, 62),
-    Instruction(WHITE, BLUE, 72),
+    Instruction(BRIGHT_PURPLE, 60),
+    Instruction(BRIGHT_WHITE, BRIGHT_GREEN, 62),
+    Instruction(BRIGHT_WHITE, BRIGHT_BLUE, 72),
     Instruction(OFF, 69420)
 };
 
