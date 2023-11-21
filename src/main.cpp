@@ -60,7 +60,7 @@ Instruction instructions[] = {
     Instruction(BRIGHT_BLUE, 56),
     // Dark king carp stuff
     Instruction(BRIGHT_PURPLE, 60),
-    Instruction(BRIGHT_WHITE, BRIGHT_GREEN, 62),
+    Instruction(BRIGHT_GREEN, 62),
     Instruction(BRIGHT_WHITE, BRIGHT_BLUE, 72),
     Instruction(OFF, 69420)
 };
@@ -129,6 +129,8 @@ static void handle_button() {
 }
 
 void setup() {
+    ADCSRA &= ~(1<<ADEN); // Disable ADC
+
     pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
 
     pinMode(BUTTON_PIN, INPUT);
@@ -145,7 +147,7 @@ void loop() {
     }
 
     const int STARTING_OFFSET = 28; // 28 beats
-    //const int STARTING_OFFSET = -4;
+    //const int STARTING_OFFSET = 20;
     if (millis() - turn_on_time >= (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
         instruction_num++;
     }
