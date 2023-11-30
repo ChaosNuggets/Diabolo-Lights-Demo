@@ -3,7 +3,8 @@
 #include <avr/sleep.h>
 
 const int BUTTON_PIN = 2;
-const int LED_PIN = 0;
+const int LED_PIN = 1;
+const int MOSFET_PIN = 0;
 const int NUM_LEDS = 6;
 
 const double BPM = 117;
@@ -80,6 +81,7 @@ ISR(PCINT0_vect) { // This should only run when it is woken up from sleep mode
     //pixels.clear();
     //pixels.show();
 
+    digitalWrite(MOSFET_PIN, HIGH); // Connect the LEDs
     turn_on_time = millis();
     last_debounce_time = millis();
     are_leds_on = true;
@@ -100,6 +102,7 @@ static void shut_down() {
     //pixels.clear();
     //pixels.show();
 
+    digitalWrite(MOSFET_PIN, LOW); // Disconnect the LEDs
     GIMSK |= 1 << PCIE; // enable pin change interrupt
     PCMSK |= 1 << PCINT2; // turns on PCINT2 as interrupt pin
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -132,6 +135,9 @@ void setup() {
     ADCSRA &= ~(1<<ADEN); // Disable ADC
 
     pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
+
+    pinMode(MOSFET_PIN, OUTPUT);
+    digitalWrite(MOSFET_PIN, HIGH); // Connect the LEDs
 
     pinMode(BUTTON_PIN, INPUT);
     debounce_button_state = digitalRead(BUTTON_PIN);
