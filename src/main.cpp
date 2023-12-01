@@ -103,6 +103,7 @@ static void shut_down() {
     //pixels.show();
 
     digitalWrite(MOSFET_PIN, LOW); // Disconnect the LEDs
+    digitalWrite(LED_PIN, HIGH); // Make it so then ESD protection doesn't get in the way of reducing power
     GIMSK |= 1 << PCIE; // enable pin change interrupt
     PCMSK |= 1 << PCINT2; // turns on PCINT2 as interrupt pin
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -132,12 +133,13 @@ static void handle_button() {
 }
 
 void setup() {
-    ADCSRA &= ~(1<<ADEN); // Disable ADC
+    ADCSRA &= ~(1 << ADEN); // Disable ADC
+    ACSR &= ~(1 << ACIE); // Disable analog comparator interrupt
+    ACSR |= 1 << ACD; // Disable analog comparator
 
     pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
 
     pinMode(MOSFET_PIN, OUTPUT);
-    digitalWrite(MOSFET_PIN, HIGH); // Connect the LEDs
 
     pinMode(BUTTON_PIN, INPUT);
     debounce_button_state = digitalRead(BUTTON_PIN);
