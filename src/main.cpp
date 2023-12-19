@@ -1,31 +1,29 @@
+// Video of this program: https://youtu.be/hJNBwNp8pKE
+
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
-#include <avr/sleep.h>
+#include <Diabolo_Light.h>
 
-const int BUTTON_PIN = 2;
-const int LED_PIN = 1;
-const int MOSFET_PIN = 0;
-const int NUM_LEDS = 6;
+using namespace Diabolo_Light;
 
-const double BPM = 117;
-const double MSPB = 60.0 * 1000.0 / BPM; // milliseconds per beat
+const static double BPM = 117; // BPM of the song I used in the video
+const static double MSPB = 60.0 * 1000.0 / BPM; // milliseconds per beat
 
 Adafruit_NeoPixel pixels(NUM_LEDS, LED_PIN, NEO_RGB + NEO_KHZ800);
 
-bool are_leds_on = false;
-
 typedef uint32_t LED_Color;
-const LED_Color OFF = pixels.Color(0, 0, 0);
-const LED_Color WHITE = pixels.Color(255/2, 255/2, 255/2);
-const LED_Color DIM_WHITE = pixels.Color(20, 20, 20);
-const LED_Color BRIGHT_WHITE = pixels.Color(255, 255, 255);
-const LED_Color BRIGHT_PURPLE = pixels.Color(255, 0, 255);
-const LED_Color BLUE = pixels.Color(0, 0, 255/2);
-const LED_Color BRIGHT_BLUE = pixels.Color(0, 0, 255);
-const LED_Color BRIGHT_YELLOW = pixels.Color(255/2, 255/2, 0);
-const LED_Color BRIGHT_RED = pixels.Color(255/2, 0, 0);
-const LED_Color BRIGHT_GREEN = pixels.Color(0, 255/2, 0);
+const static LED_Color OFF = pixels.Color(0, 0, 0);
+const static LED_Color WHITE = pixels.Color(255/2, 255/2, 255/2);
+const static LED_Color DIM_WHITE = pixels.Color(20, 20, 20);
+const static LED_Color BRIGHT_WHITE = pixels.Color(255, 255, 255);
+const static LED_Color BRIGHT_PURPLE = pixels.Color(255, 0, 255);
+const static LED_Color BLUE = pixels.Color(0, 0, 255/2);
+const static LED_Color BRIGHT_BLUE = pixels.Color(0, 0, 255);
+const static LED_Color BRIGHT_YELLOW = pixels.Color(255/2, 255/2, 0);
+const static LED_Color BRIGHT_RED = pixels.Color(255/2, 0, 0);
+const static LED_Color BRIGHT_GREEN = pixels.Color(0, 255/2, 0);
 
+// An Instruction consists of two colors and the time in beats at which it should move to the next instruction
 struct Instruction {
     const LED_Color& color1;
     const LED_Color& color2;
@@ -38,8 +36,8 @@ struct Instruction {
         : color1(color1), color2(color2), timing(timing) {}
 };
 
-int instruction_num = 0;
-Instruction instructions[] = {
+static unsigned int instruction_num = 0; // Stores which instruction we are currently on in the instructions array
+static Instruction instructions[] = { // A list of colors that the lights follow in order
     Instruction(WHITE, BLUE, 0),
     Instruction(BRIGHT_WHITE, BLUE, 4),
     Instruction(OFF, 5),
@@ -66,110 +64,37 @@ Instruction instructions[] = {
     Instruction(OFF, 69420)
 };
 
-unsigned long last_debounce_time = 0;
-const int DEBOUNCE_DELAY = 50; //ms
-int debounce_button_state;
-int button_state = HIGH; // Set it to high so then the second if block inside handle_button runs on startup if the button is low
-unsigned long turn_on_time = 0;
-
-ISR(PCINT0_vect) { // This should only run when it is woken up from sleep mode
-    //for(int i = 0; i < NUM_LEDS; i++) {
-    //    pixels.setPixelColor(i, pixels.Color(0, 50, 0));
-    //    pixels.show();
-    //}
-    //delay(500);
-    //pixels.clear();
-    //pixels.show();
-
-    digitalWrite(MOSFET_PIN, HIGH); // Connect the LEDs
-    turn_on_time = millis();
-    last_debounce_time = millis();
-    are_leds_on = true;
-    button_state = HIGH;
-    instruction_num = 0; // start back at the beginning of the instructions array
-
-    cli(); // disable interrupts
-    PCMSK &= ~(1 << PCINT2); // turns of PCINT2 as interrupt pin
-    sleep_disable(); // clear sleep enable bit
-}
-
-static void shut_down() {
-    //for(int i = 0; i < NUM_LEDS; i++) {
-    //    pixels.setPixelColor(i, pixels.Color(50, 0, 0));
-    //    pixels.show();
-    //}
-    //delay(500);
-    //pixels.clear();
-    //pixels.show();
-
-    digitalWrite(MOSFET_PIN, LOW); // Disconnect the LEDs
-    digitalWrite(LED_PIN, HIGH); // Make it so then ESD protection doesn't get in the way of reducing power
-    GIMSK |= 1 << PCIE; // enable pin change interrupt
-    PCMSK |= 1 << PCINT2; // turns on PCINT2 as interrupt pin
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sleep_enable(); //set sleep enable bit
-    sei(); // enable interrupts
-    sleep_mode(); // put the microcontroller to sleep
-}
-
-static void handle_button() {
-    int reading = digitalRead(BUTTON_PIN);
-    if (reading != debounce_button_state) {
-        last_debounce_time = millis();
-        debounce_button_state = reading;
-    }
-
-    if ((millis() - last_debounce_time) > DEBOUNCE_DELAY && reading != button_state) {
-        button_state = reading;
-
-        if (are_leds_on && button_state == HIGH) {
-            are_leds_on = false;
-        } 
-
-        if (!are_leds_on && button_state == LOW) {
-            shut_down();
-        }
-    }
-}
-
 void setup() {
-    ADCSRA &= ~(1 << ADEN); // Disable ADC
-    ACSR &= ~(1 << ACIE); // Disable analog comparator interrupt
-    ACSR |= 1 << ACD; // Disable analog comparator
-
     pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
 
-    pinMode(MOSFET_PIN, OUTPUT);
-
-    pinMode(BUTTON_PIN, INPUT);
-    debounce_button_state = digitalRead(BUTTON_PIN);
+    begin(1, 0, [](){ instruction_num = 0; }); // Set the board to have 1 on mode
 }
 
 void loop() {
+    // Change current_mode and/or shut down the board if necessary
     handle_button();
 
-    if (!are_leds_on) {
-        pixels.clear();
-        pixels.show();
-        return;
-    }
-
+    // The number of beats the board should wait before going through the instructions array
     const int STARTING_OFFSET = 28; // 28 beats
-    //const int STARTING_OFFSET = 20;
-    if (millis() - turn_on_time >= (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
+    // const int STARTING_OFFSET = 20;
+
+    // If it's time to change to the next color in the instructions array, increment
+    // instruction_num (used as an index for the instructions array)
+    if (awake_time() >= (instructions[instruction_num].timing + STARTING_OFFSET) * MSPB) {
         instruction_num++;
     }
     
-    for (int i = 0; i < NUM_LEDS; i += 2) {
+    // Set the pixels to the color in the instructions array
+    for (unsigned int i = 0; i < NUM_LEDS; i += 2) {
         pixels.setPixelColor(i, instructions[instruction_num].color1);
     }
-    for (int i = 1; i < NUM_LEDS; i += 2) {
+    for (unsigned int i = 1; i < NUM_LEDS; i += 2) {
         pixels.setPixelColor(i, instructions[instruction_num].color2);
     }
     pixels.show();
     
+    // If we reach the end of the instructions array
     if (instruction_num >= sizeof(instructions) / sizeof(instructions[0]) - 1) {
-        button_state = HIGH; // make it so the shut down command runs if the button is not pressed (I hate button debounce so much lmao)
-        are_leds_on = false;
+        set_current_mode(0); // Set the board to off mode
     }
 }
